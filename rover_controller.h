@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-enum class TagType { Plant, Dock, Boundary, Unknown };
+enum class TagType { InspectionWaypoint, Dock, Boundary, Unknown };
 enum class Action {
     TurnLeft,
     TurnRight,

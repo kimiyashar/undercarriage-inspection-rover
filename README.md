@@ -1,31 +1,31 @@
-# Vision-Guided Plant-Watering Rover
+# Vision-Guided Undercarriage Inspection Rover
 
-A work-in-progress autonomous rover designed to monitor and water a U-shaped dorm-room garden. The current milestone is a tested C++ perception-to-control simulator that turns processed camera and AprilTag observations into safe navigation actions.
+A work-in-progress autonomous rover designed to travel beneath parked vehicles, localize itself with AprilTags, and collect repeatable imagery for undercarriage inspection. The current milestone is a tested C++ perception-to-control simulator that converts processed camera and marker observations into safety-prioritized navigation actions.
 
-> **Current scope:** simulated perception and C++ control only. Real camera processing, Python/OpenCV integration, Raspberry Pi deployment, and physical hardware are not implemented yet.
+> **Current scope:** C++ control and CSV-simulated perception are implemented. Real Python/OpenCV camera processing, AprilTag pose estimation, on-device defect detection, embedded deployment, and physical hardware integration are in development or planned.
 
 ## Current status
 
 ### Implemented
 
-- C++17 rover controller
-- Plant, dock, boundary, and unknown AprilTag classification
-- Safety-prioritized decision logic
+- C++17 perception-to-control system
+- Inspection waypoint, dock, boundary, and unknown AprilTag classification
+- Safety-prioritized navigation logic
 - Multiple AprilTags in one camera frame
-- CSV replay of simulated camera and sensor observations
+- CSV replay of simulated camera and marker observations
 - Controller and CSV parser tests
 - Makefile build commands
 - GitHub Actions build and test workflow
 
-### In progress / planned
+### In development / planned
 
 - Python/OpenCV camera pipeline
 - Real AprilTag detection and pose estimation
-- Raspberry Pi deployment
-- On-device plant-health inference
-- Model quantization and compression
-- Motor, pump, bumper, and encoder integration
-- Physical docking and watering tests
+- On-device undercarriage defect detection
+- Embedded Linux deployment
+- Motor, bumper, encoder, and lighting integration
+- Repeatable inspection-path execution
+- Image capture linked to vehicle position and inspection waypoint
 
 ## System architecture
 
@@ -43,21 +43,23 @@ simulated_camera_data.csv
  navigation action + reason
 
 PLANNED
-Pi camera -> Python/OpenCV perception -> C++ controller -> motors/pump
+camera -> Python/OpenCV perception -> C++ controller -> motors
+                       |
+                       +-> localized inspection images + defect candidates
 ```
 
-The perception interface is documented in [`docs/camera-frame-interface.md`](docs/camera-frame-interface.md). The staged physical build and purchasing plan is in [`docs/hardware-bom.md`](docs/hardware-bom.md).
+The perception interface is documented in [`docs/camera-frame-interface.md`](docs/camera-frame-interface.md). The staged physical build is described in [`docs/hardware-bom.md`](docs/hardware-bom.md).
 
 ## AprilTag scheme
 
 | IDs | Meaning |
 |---|---|
-| `1-99` | Plant stations |
+| `1-99` | Inspection waypoints beneath or around a vehicle |
 | `500` | Home dock |
 | `900-999` | Safety boundaries |
 | Anything else | Unknown and ignored |
 
-AprilTags are printed visual markers read by a camera. They are not RFID tags and require no radio reader.
+AprilTags are printed visual markers read by a camera. They provide stable IDs and, with pose estimation, relative position and orientation. They are not RFID tags.
 
 ## Controller decisions
 
@@ -77,11 +79,11 @@ Safety always overrides navigation:
 2. Bumper activation
 3. Camera-detected obstacle
 4. Confident boundary AprilTag
-5. Correct target AprilTag
+5. Correct inspection waypoint
 6. Visible route
 7. Lost route
 
-If a plant and boundary are visible simultaneously, the boundary wins.
+If an inspection waypoint and boundary marker are visible simultaneously, the boundary wins.
 
 ## Build and run
 
@@ -90,14 +92,12 @@ If a plant and boundary are visible simultaneously, the boundary wins.
 - C++17 compiler
 - `make`
 
-On macOS with Xcode Command Line Tools or a typical Linux development environment:
-
 ```bash
 make
 ./rover_sim simulated_camera_data.csv 2
 ```
 
-The final argument is the target AprilTag ID. In this example, the rover is navigating toward Plant 2.
+The final argument is the target AprilTag ID. In this example, the rover navigates toward inspection waypoint 2.
 
 Example output:
 
@@ -121,38 +121,22 @@ PASS: all controller decision situations
 PASS: CSV camera simulation loader
 ```
 
-## Simulated camera data
+## Simulated perception data
 
-`simulated_camera_data.csv` contains one or more rows per frame:
+`simulated_camera_data.csv` contains one or more observations per frame:
 
 ```text
 frame,valid,path_visible,path_offset,obstacle,bumper,tag_id,tag_angle_deg,tag_distance_m,tag_confidence
 ```
 
-Multiple rows with the same frame number represent multiple AprilTags visible in one camera frame. A `tag_id` of `-1` means no tag was detected on that row.
+Multiple rows with the same frame number represent multiple AprilTags visible in one frame. A `tag_id` of `-1` means no marker was detected.
 
-The sample data demonstrates route following, correct and incorrect plant tags, boundary priority, obstacles, bumper activation, invalid frames, lost routes, weak detections, and unknown tags. Dock behavior is covered by the controller test suite.
-
-## Repository structure
-
-```text
-.
-├── main.cpp                       # Simulator entry point
-├── rover_controller.h/.cpp        # Tag classification and control decisions
-├── simulation_io.h/.cpp           # CSV frame loader
-├── simulated_camera_data.csv      # Example observations
-├── tests.cpp                      # Controller behavior tests
-├── simulation_io_tests.cpp        # CSV loader tests
-├── docs/
-│   └── camera-frame-interface.md  # Planned perception interface
-├── .github/workflows/ci.yml       # Automated build and tests
-└── Makefile
-```
+The sample sequence covers route following, correct and incorrect inspection waypoints, boundary priority, obstacles, bumper activation, invalid frames, lost routes, weak detections, and unknown tags. Dock behavior is covered by the controller tests.
 
 ## Physical safety limitation
 
-Boundary AprilTags are not a continuous barrier. A physical rover must also use an independent continuous boundary or low perimeter lip, plus a bumper or equivalent hardware stop mechanism. Camera logic must not be the only protection against a ledge.
+AprilTag boundaries are semantic landmarks, not continuous barriers. A physical rover also needs independent proximity sensing, bumpers, a hardware stop path, and appropriate clearance checks before entering or moving beneath a vehicle.
 
 ## Next milestone
 
-Build a Python/OpenCV adapter that reads a real camera, detects AprilTags, and produces the same `CameraFrame` fields currently supplied by the CSV simulator.
+Build a Python/OpenCV adapter that captures real camera frames, estimates AprilTag poses, and produces the same `CameraFrame` fields currently supplied by the CSV simulator. Then connect localized imagery to an on-device defect-detection pipeline.

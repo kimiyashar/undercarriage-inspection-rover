@@ -19,7 +19,7 @@ bool usable(const TagDetection& tag, double minimumConfidence) {
 }
 
 TagType classifyTag(int id) {
-    if (id >= 1 && id <= 99) return TagType::Plant;
+    if (id >= 1 && id <= 99) return TagType::InspectionWaypoint;
     if (id == 500) return TagType::Dock;
     if (id >= 900 && id <= 999) return TagType::Boundary;
     return TagType::Unknown;
